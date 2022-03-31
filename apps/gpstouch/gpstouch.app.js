@@ -94,7 +94,7 @@ const infoData = {
     calc: () => 'SOG: ' + last_fix.speed.toFixed(1) + ' kn',
   },
   ID_COURSE: {
-    calc: () => 'COG: '+ last_fix.course.toFixed(0) + '°',
+    calc: () => 'COG: '+ last_fix.course.toFixed(0) + String.fromCharCode(176),
   },
   ID_SATS: {
     calc: () => 'HDOP: ' + last_fix.hdop,
