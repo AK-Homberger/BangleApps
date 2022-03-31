@@ -91,33 +91,21 @@ const infoData = {
     calc: () => 'Lon: ' + last_fix.lon.toFixed(4),
   },
   ID_SPEED: {
-    calc: () => 'Speed: ' + last_fix.speed.toFixed(1),
-  },
-  ID_ALT: {
-    calc: () => 'Alt: ' + last_fix.alt.toFixed(0),
+    calc: () => 'SOG: ' + last_fix.speed.toFixed(1) + ' kn',
   },
   ID_COURSE: {
-    calc: () => 'Course: '+ last_fix.course.toFixed(0),
+    calc: () => 'COG: '+ last_fix.course.toFixed(0) +' °',
   },
   ID_SATS: {
-    calc: () => 'Satelites: ' + last_fix.satellites,
+    calc: () => 'HDOP: ' + last_fix.hdop,
   },
   ID_TIME: {
-    calc: () => formatTime(last_fix.time),
-  },
-  OS_REF: {
-    calc: () => !last_fix.fix ? "OO 000 000" : geo.gpsToOSMapRef(last_fix),
+    calc: () => 'UTC:' + formatTime(last_fix.time),
   },
   GPS_POWER: {
     calc: () => (Bangle.isGPSOn()) ? 'GPS On' : 'GPS Off',
     action: () => toggleGPS(),
     get_color: () => Bangle.isGPSOn() ? '#f00' : '#00f',
-    is_control: true,
-  },
-  GPS_LOGGER: {
-    calc: () => 'Logger ' + loggerStatus(),
-    action: () => toggleLogger(),
-    get_color: () => loggerStatus() == "ON" ? '#f00' : '#00f',
     is_control: true,
   },
 };
