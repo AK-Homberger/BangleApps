@@ -1,6 +1,5 @@
 const h = g.getHeight();
 const w = g.getWidth();
-let geo = require("geotools");
 let last_fix;
 let listennerCount = 0;
 
@@ -84,11 +83,19 @@ function drawInfo() {
 }
 
 const infoData = {
+  GPS_POWER: {
+    calc: () => (Bangle.isGPSOn()) ? 'GPS On' : 'GPS Off',
+    action: () => toggleGPS(),
+    get_color: () => Bangle.isGPSOn() ? '#f00' : '#00f',
+    is_control: true,
+  },
   ID_LAT: {
-    calc: () => 'Lat: ' + last_fix.lat.toFixed(4),
+    // calc: () => 'Lat: ' + last_fix.lat.toFixed(4),
+  	calc: () => ConvertDEGToDM(last_fix.lat, true),
   },
   ID_LON: {
-    calc: () => 'Lon: ' + last_fix.lon.toFixed(4),
+    // calc: () => 'Lon: ' + last_fix.lon.toFixed(4),
+    calc: () => ConvertDEGToDM(last_fix.lon, false),
   },
   ID_SPEED: {
     calc: () => 'SOG: ' + last_fix.speed.toFixed(1) + ' kn',
@@ -96,18 +103,15 @@ const infoData = {
   ID_COURSE: {
     calc: () => 'COG: '+ last_fix.course.toFixed(0) + String.fromCharCode(176),
   },
-  ID_SATS: {
-    calc: () => 'HDOP: ' + last_fix.hdop,
-  },
   ID_TIME: {
     calc: () => 'UTC:' + formatTime(last_fix.time),
+  },  
+  ID_HDOP: {
+    calc: () => 'HDOP: ' + last_fix.hdop,
   },
-  GPS_POWER: {
-    calc: () => (Bangle.isGPSOn()) ? 'GPS On' : 'GPS Off',
-    action: () => toggleGPS(),
-    get_color: () => Bangle.isGPSOn() ? '#f00' : '#00f',
-    is_control: true,
-  },
+  ID_SATS: {
+    calc: () => 'Satelites: ' + last_fix.satellites,
+  },  
 };
 
 function toggleGPS() {
@@ -164,7 +168,25 @@ function formatTime(now) {
   }
 }
 
-const infoList = Object.keys(infoData).sort();
+
+function ConvertDEGToDM(deg, lat) {
+    var absolute = Math.abs(deg);
+
+    var degrees = Math.floor(absolute);
+    var minutes = (absolute - degrees) * 60;
+    
+    var direction = 0;
+  
+    if (lat) {
+        direction = deg >= 0 ? 'N' : 'S';
+    } else {
+        direction = deg >= 0 ? 'E' : 'W';
+    }
+    return degrees + String.fromCharCode(176) + minutes.toFixed(2) + "'" + direction;
+}
+
+
+const infoList = Object.keys(infoData);
 let infoMode = infoList[0];
 
 function nextInfo() {
