@@ -1,5 +1,5 @@
-const h = g.getHeight();
-const w = g.getWidth();
+let h = g.getHeight();
+let w = g.getWidth();
 let last_fix;
 let listennerCount = 0;
 
