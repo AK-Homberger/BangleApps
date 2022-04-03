@@ -9,7 +9,7 @@
   "supports": ["BANGLEJS2"],
   "readme": "README.md",
   "storage": [
-    {"name":"gpstouch.app.js","url":"gpstouch.app.js"},
+    {"name":"mygpstouch.app.js","url":"mygpstouch.app.js"},
     {"name":"gpstouch.img","url":"gpstouch.icon.js","evaluate":true}
   ]
 }
