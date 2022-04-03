@@ -1,0 +1,15 @@
+{
+  "id": "mygpstouch",
+  "name": "My GPS Touch",
+  "version": "0.01",
+  "description": "A touch based GPS watch.",
+  "icon": "gpstouch.png",
+  "screenshots": [{"url":"screenshot4.png"},{"url":"screenshot2.png"},{"url":"screenshot3.png"},{"url":"screenshot1.png"}],
+  "tags": "tools,app",
+  "supports": ["BANGLEJS2"],
+  "readme": "README.md",
+  "storage": [
+    {"name":"gpstouch.app.js","url":"gpstouch.app.js"},
+    {"name":"gpstouch.img","url":"gpstouch.icon.js","evaluate":true}
+  ]
+}
