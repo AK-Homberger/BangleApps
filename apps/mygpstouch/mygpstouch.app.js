@@ -90,11 +90,9 @@ const infoData = {
     is_control: true,
   },
   ID_LAT: {
-    // calc: () => 'Lat: ' + last_fix.lat.toFixed(4),
-  	calc: () => ConvertDEGToDM(last_fix.lat, true),
+    calc: () => ConvertDEGToDM(last_fix.lat, true),
   },
   ID_LON: {
-    // calc: () => 'Lon: ' + last_fix.lon.toFixed(4),
     calc: () => ConvertDEGToDM(last_fix.lon, false),
   },
   ID_SPEED: {
@@ -174,9 +172,9 @@ function ConvertDEGToDM(deg, lat) {
 
     var degrees = Math.floor(absolute);
     var minutes = (absolute - degrees) * 60;
-    
+
     var direction = 0;
-  
+
     if (lat) {
         direction = deg >= 0 ? 'N' : 'S';
     } else {
