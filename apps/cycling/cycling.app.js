@@ -164,44 +164,10 @@ class CSCSensor {
   }
 
   onWheelEvent(event) {
-    // Calculate number of revolutions since last wheel event
-    var dRevs = (this.cwr > 0 ? event.cwr - this.cwr : 0);
-    this.cwr = event.cwr;
-
-    // Increment the trip revolutions counter
-    this.cwrTrip += dRevs;
-
-    // Calculate time delta since last wheel event
-    var dT = (event.lwet - this.lwet)/1024;
-    var now = Date.now();
-    var dBT = (now-this.lastBangleTime)/1000;
-    this.lastBangleTime = now;
-    if (dT<0) dT+=64;  // wheel event time wraps every 64s
-    if (Math.abs(dT-dBT)>3) dT = dBT;  // not sure about the reason for this
-    this.lwet = event.lwet;
-
-    // Recalculate current speed
-    if (dRevs>0 && dT>0) {
-      this.speed = dRevs * this.wheelCirc / dT;
-      this.speedFailed = 0;
-      this.movingTime += dT;
-    } else {
-      this.speedFailed++;
-      if (this.speedFailed>3) {
-        this.speed = 0;
-      }
-    }
-
+        
     this.speed = event.cwr / 100;
-    
-    // Update max speed
-    if (this.speed>this.maxSpeed
-      && (this.movingTime>3 || this.speed<20)
-      && this.speed<50
-    ) this.maxSpeed = this.speed;
-
-    this.updateScreen();
-  }
+    this.speedFailed = 0;
+    this.updateScreen();  
 }
 
 class CSCDisplay {
