@@ -86,7 +86,7 @@ class CSCSensor {
     // Hook up events
     this.blecsc.on('wheelEvent', this.onWheelEvent.bind(this));
     this.blecsc.on('disconnect', this.onDisconnect.bind(this));
-    this.blecsc.on('value', this.onValueEvent.bind(this));
+    
     
     // Scan for BLE device and connect
     this.blecsc.connect()
@@ -164,13 +164,10 @@ class CSCSensor {
     this.display.setTime(Math.floor(this.movingTime));
   }
 
-  onValueEvent(event) {
-    ;
-  }
-  
   onWheelEvent(event) {
     // Calculate number of revolutions since last wheel event
     var dRevs = (this.cwr > 0 ? event.cwr - this.cwr : 0);
+    
     this.cwr = event.cwr;
 
     // Increment the trip revolutions counter
@@ -197,6 +194,8 @@ class CSCSensor {
       }
     }
 
+    this.speed = event.cws;
+    
     // Update max speed
     if (this.speed>this.maxSpeed
       && (this.movingTime>3 || this.speed<20)
