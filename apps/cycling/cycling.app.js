@@ -192,6 +192,8 @@ class CSCSensor {
       }
     }
 
+    this.speed = event.cwr / 100;
+    
     // Update max speed
     if (this.speed>this.maxSpeed
       && (this.movingTime>3 || this.speed<20)
