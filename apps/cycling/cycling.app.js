@@ -164,6 +164,9 @@ class CSCSensor {
   }
 
   onWheelEvent(event) {
+    
+    Terminal.println("Hello World");
+    
     // Calculate number of revolutions since last wheel event
     this.speed = event.cwr / 100;
     this.maxSpeed = event.lwet / 10;
