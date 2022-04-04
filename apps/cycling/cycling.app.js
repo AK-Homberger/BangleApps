@@ -165,7 +165,7 @@ class CSCSensor {
 
   onWheelEvent(event) {
     
-    Terminal.println("Hello World");
+     E.showMessage("Event", "My Timer");
     
     // Calculate number of revolutions since last wheel event
     this.speed = event.cwr / 100;
