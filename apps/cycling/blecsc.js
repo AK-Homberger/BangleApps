@@ -60,7 +60,7 @@ class BLECSC {
     // Not interested in non-CSC characteristics
     if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
 
-    // Terminal.println("Got Data");
+    Terminal.println("Got Data");
     
     // Notify the generic 'value' handler
     if (this.handlers.value) this.handlers.value(event);
