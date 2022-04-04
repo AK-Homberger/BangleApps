@@ -58,7 +58,7 @@ class BLECSC {
    */
   onValue(event) {
     // Not interested in non-CSC characteristics
-    if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
+    //if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
 
     E.showMessage("Event", "My Timer");
     
