@@ -59,10 +59,10 @@ class BLECSC {
   onValue(event) {
     // Not interested in non-CSC characteristics
     
-    E.showMessage("Out of Time", "My Timer");
-    
     if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
 
+    Terminal.println("Got Data");
+    
     // Notify the generic 'value' handler
     if (this.handlers.value) this.handlers.value(event);
 
