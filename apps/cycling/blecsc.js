@@ -1,6 +1,6 @@
 const SERVICE_UUID = "91bad492-b950-4226-aa2b-4ede9fa42f59";
 // UUID of the CSC measurement characteristic
-const MEASUREMENT_UUID = "ca73b3ba-39f6-4ab3-91ae-186dc9577d99";
+const MEASUREMENT_UUID = "cba1d466-344c-4be3-ab3f-189f80dd7518";
 
 // Wheel revolution present bit mask
 const FLAGS_WREV_BM = 0x01;
