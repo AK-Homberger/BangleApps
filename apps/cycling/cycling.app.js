@@ -166,8 +166,12 @@ class CSCSensor {
   onWheelEvent(event) {
         
     this.speed = event.cwr / 100;
+    this.maxSpeed = event.lwet / 100;
     this.speedFailed = 0;
+    }
+    
     this.updateScreen();  
+   } 
 }
 
 class CSCDisplay {
