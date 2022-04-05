@@ -58,8 +58,8 @@ class BLECSC {
    */
   onValue(event) {
     // Not interested in non-CSC characteristics
-    if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
-
+    // if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
+    console.log("Event");
     // Notify the generic 'value' handler
     if (this.handlers.value) this.handlers.value(event);
 
