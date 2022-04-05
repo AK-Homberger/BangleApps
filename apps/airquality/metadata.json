@@ -1,9 +1,9 @@
 {
   "id": "airquality",
   "name": "Air Quality",
-  "shortName": "Air",
+  "shortName": "Air Quality",
   "version": "0.01",
-  "description": "Display live values from a Air Quality sensor",
+  "description": "Display live values from a BLE Air Quality sensor",
   "icon": "icons8-cycling-48.png",
   "tags": "ble,bluetooth",
   "supports": ["BANGLEJS2"],
