@@ -1,14 +1,8 @@
 const Layout = require('Layout');
 const storage = require('Storage');
 
-const SETTINGS_FILE = 'cycling.json';
-const SETTINGS_DEFAULT = {
-  sensors: {},
-  metric: true,
-};
-
 const RECONNECT_TIMEOUT = 4000;
-const MAX_CONN_ATTEMPTS = 2;
+const MAX_CONN_ATTEMPTS = 100;
 
 class CSCSensor {
   constructor(blecsc, display) {
@@ -16,21 +10,11 @@ class CSCSensor {
     this.blecsc = blecsc;
     this.display = display;
 
-    // Load settings
-    this.settings = storage.readJSON(SETTINGS_FILE, true) || SETTINGS_DEFAULT;
-    this.wheelCirc = undefined;
-
     // CSC runtime variables
-    this.movingTime = 0;              // unit: s
-    this.lastBangleTime = Date.now(); // unit: ms
-    this.lwet = 0;                    // last wheel event time (unit: s/1024)
-    this.cwr = -1;                    // cumulative wheel revolutions
-    this.cwrTrip = 0;                 // wheel revolutions since trip start
-    this.speed = 0;                   // unit: m/s
-    this.maxSpeed = 0;                // unit: m/s
-    this.eCO2 = 0;                // unit: m/s
-    
-    this.speedFailed = 0;
+
+    this.temp = 0;               // unit: °
+    this.hum = 0;                // unit: %
+    this.eCO2 = 0;               // unit: ppm
 
     // Other runtime variables
     this.connected = false;
@@ -39,51 +23,25 @@ class CSCSensor {
 
     // Layout configuration
     this.layout = 0;
-    this.display.useMetricUnits(true);
     this.deviceAddress = undefined;
-    this.display.useMetricUnits((this.settings.metric));
   }
 
   onDisconnect(event) {
     console.log("disconnected ", event);
 
     this.connected = false;
-    this.wheelCirc = undefined;
-
     this.setLayout(0);
     this.display.setDeviceAddress("unknown");
 
-    if (this.failedAttempts >= MAX_CONN_ATTEMPTS) {
-      this.failed = true;
-      this.display.setStatus("Connection failed after " + MAX_CONN_ATTEMPTS + " attempts.");
-    } else {
-      this.display.setStatus("Disconnected");
-      setTimeout(this.connect.bind(this), RECONNECT_TIMEOUT);
-    }
-  }
-
-  loadCircumference() {
-    if (!this.deviceAddress) return;
-
-    // Add sensor to settings if not present
-    if (!this.settings.sensors[this.deviceAddress]) {
-      this.settings.sensors[this.deviceAddress] = {
-        cm: 223,
-        mm: 0,
-      };
-      storage.writeJSON(SETTINGS_FILE, this.settings);
-    }
-
-    const high = this.settings.sensors[this.deviceAddress].cm || 223;
-    const low = this.settings.sensors[this.deviceAddress].mm || 0;
-    this.wheelCirc = (10*high + low) / 1000;
+    this.display.setStatus("Disconnected");
+    setTimeout(this.connect.bind(this), RECONNECT_TIMEOUT);
   }
 
   connect() {
     this.connected = false;
     this.setLayout(0);
     this.display.setStatus("Connecting");
-    console.log("Trying to connect to BLE CSC");
+    console.log("Trying to connect to BLE Sensor");
 
     // Hook up events
     this.blecsc.on('wheelEvent', this.onWheelEvent.bind(this));
@@ -100,8 +58,6 @@ class CSCSensor {
 
         this.display.setDeviceAddress(this.deviceAddress);
         this.display.setStatus("Connected");
-
-        this.loadCircumference();
 
         // Switch to speed screen in 2s
         setTimeout(function() {
@@ -152,23 +108,19 @@ class CSCSensor {
   }
 
   updateScreen() {
-    var tripDist = this.cwrTrip * this.wheelCirc;
-    var avgSpeed = this.movingTime > 3 ? tripDist / this.movingTime : 0;
-
-    this.display.setSpeed(this.speed);
-    this.display.setAvg(this.eCO2);
-    this.display.setMax(this.maxSpeed);
-    this.display.setTime(Math.floor(this.movingTime));
+    this.display.setCO2(this.eCO2);
+    this.display.setHum(this.hum);
+    this.display.setTemp(this.temp);
+    this.display.setTime();
   }
 
   onWheelEvent(event) {
     // Calculate number of revolutions since last wheel event
 
-    this.speed = event.eCO2;
-    this.maxSpeed = event.hum / 10;
-    this.eCO2 = event.temp / 100;
-    this.speedFailed = 0;
-    console.log("Main Event",  this.eCO2);
+    this.temp= event.temp / 100;
+    this.hum = event.hum / 10;
+    this.eCO2 = event.eCO2;
+    //console.log("Main Event",  this.eCO2);
 
     this.updateScreen();
   }
@@ -195,8 +147,8 @@ class CSCDisplay {
           bgCol: "#fff",
           c: [
             {type: undefined, width: 32, halign: -1},
-            {type: "txt", id: "speed", label: "00.0", font: this.fontLarge, bgCol: "#fff", col: "#000", width: 122},
-            {type: "txt", id: "speed_u", label: "  km/h", font: this.fontLabel, col: "#000", width: 22, r: 90},
+            {type: "txt", id: "speed", label: "000", font: this.fontLarge, bgCol: "#fff", col: "#000", width: 122},
+            {type: "txt", id: "speed_u", label: " ppm ", font: this.fontLabel, col: "#000", width: 22, r: 90},
           ]
         },
         {
@@ -209,7 +161,7 @@ class CSCDisplay {
           c: [
             {type: undefined, width: 32, halign: -1},
             {type: "txt", id: "time", label: "00:00", font: this.fontMed, bgCol: "#000", col: "#fff", width: 122},
-            {type: "txt", id: "time_u", label: "mins", font: this.fontLabel, bgCol: "#000", col: "#fff", width: 22, r: 90},
+            {type: "txt", id: "time_u", label: " ", font: this.fontLabel, bgCol: "#000", col: "#fff", width: 22, r: 90},
           ]
         },
         {
@@ -224,7 +176,7 @@ class CSCDisplay {
               pad: 4,
               bgCol: "#fff",
               c: [
-                {type: "txt", id: "max_l", label: "MAX", font: this.fontLabel, col: "#000"},
+                {type: "txt", id: "max_l", label: "Temp", font: this.fontLabel, col: "#000"},
                 {type: "txt", id: "max", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
               ],
             },
@@ -233,16 +185,16 @@ class CSCDisplay {
               pad: 4,
               bgCol: "#fff",
               c: [
-                {type: "txt", id: "avg_l", label: "AVG", font: this.fontLabel, col: "#000"},
+                {type: "txt", id: "avg_l", label: "Hum", font: this.fontLabel, col: "#000"},
                 {type: "txt", id: "avg", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
               ],
             },
-            {type: "txt", id: "stats_u", label: " km/h", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
+            {type: "txt", id: "stats_u", label: " ", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
           ]
         },
       ],
     });
-    
+
     this.layouts.status = new Layout({
       type: "v",
       c: [
@@ -286,55 +238,28 @@ class CSCDisplay {
     this.layouts[layout].render(node);
   }
 
-  useMetricUnits(metric) {
-    this.metric = metric;
-
-    // console.log("using " + (metric ? "metric" : "imperial") + " units");
-
-    var speedUnit = metric ? "km/h" : "mph";
-    this.layouts.speed.speed_u.label = speedUnit;
-    this.layouts.speed.stats_u.label = speedUnit;
-
-    this.updateLayout(this.currentLayout);
-  }
-
-  convertDistance(meters) {
-    if (this.metric) return meters / 1000;
-    return meters / 1609.344;
-  }
-
-  convertSpeed(mps) {
-    if (this.metric) return mps;
-    return mps * 2.23694;
-  }
-
-  setSpeed(speed) {
-    this.layouts.speed.speed.label = this.convertSpeed(speed);
+  setCO2(val) {
+    this.layouts.speed.speed.label = val;
     this.renderIfLayoutActive("speed", this.layouts.speed.speed_g);
   }
 
-  setAvg(speed) {
-    this.layouts.speed.avg.label = this.convertSpeed(speed).toFixed(1);
+  setHum(val) {
+    this.layouts.speed.avg.label = val.toFixed(1);
     this.renderIfLayoutActive("speed", this.layouts.speed.stats_g);
   }
 
-  setMax(speed) {
-    this.layouts.speed.max.label = this.convertSpeed(speed).toFixed(1);
+  setTemp(val) {
+    this.layouts.speed.max.label = val.toFixed(1);
     this.renderIfLayoutActive("speed", this.layouts.speed.stats_g);
   }
 
-  setTime(seconds) {
-    var time = '';
-    var hours = Math.floor(seconds/3600);
-    if (hours) {
-      time += hours + ":";
-      this.layouts.speed.time_u.label = " hrs";
-    } else {
-      this.layouts.speed.time_u.label = "mins";
-    }
+  setTime() {
+    var d = new Date();
+    var da = d.toString().split(" ");
+    var hh = da[4].substr(0,2);
+    var mm = da[4].substr(3,2);
 
-    time += String(Math.floor((seconds%3600)/60)).padStart(2, '0') + ":";
-    time += String(seconds % 60).padStart(2, '0');
+    var time = hh + ':' + mm;
 
     this.layouts.speed.time.label = time;
     this.renderIfLayoutActive("speed", this.layouts.speed.time_g);
