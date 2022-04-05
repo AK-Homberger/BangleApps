@@ -162,8 +162,9 @@ class CSCSensor {
   onWheelEvent(event) {
     // Calculate number of revolutions since last wheel event
 
-    this.speed = event.cwr / 100;
-    this.maxSpeed = event.lwet / 10;
+    this.speed = event.temp / 100;
+    this.maxSpeed = event.hum / 10;
+    this.eCO2 = event.eCO2
     this.speedFailed = 0;
     console.log("Main Event", this.speed);
 
