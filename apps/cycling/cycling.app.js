@@ -309,7 +309,7 @@ class CSCDisplay {
   }
 
   setSpeed(speed) {
-    this.layouts.speed.speed.label = this.convertSpeed(speed).toFixed(1);
+    this.layouts.speed.speed.label = this.convertSpeed(speed);
     this.renderIfLayoutActive("speed", this.layouts.speed.speed_g);
   }
 
