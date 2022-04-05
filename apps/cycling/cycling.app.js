@@ -126,9 +126,7 @@ class CSCSensor {
       this.display.updateLayout("status");
     } else if (this.layout == 1) {
       this.display.updateLayout("speed");
-    } else if (this.layout == 2) {
-      this.display.updateLayout("distance");
-    }
+    } 
   }
 
   reset() {
@@ -147,7 +145,7 @@ class CSCSensor {
       this.reset();
       this.connect();
     } else if (this.connected) {
-      this.setLayout((this.layout + 1) % 3);
+      this.setLayout((this.layout + 1) % 2);
     }
   }
 
@@ -155,8 +153,6 @@ class CSCSensor {
     var tripDist = this.cwrTrip * this.wheelCirc;
     var avgSpeed = this.movingTime > 3 ? tripDist / this.movingTime : 0;
 
-    this.display.setTotalDistance(this.cwr * this.wheelCirc);
-    this.display.setTripDistance(tripDist);
     this.display.setSpeed(this.speed);
     this.display.setAvg(avgSpeed);
     this.display.setMax(this.maxSpeed);
@@ -165,40 +161,11 @@ class CSCSensor {
 
   onWheelEvent(event) {
     // Calculate number of revolutions since last wheel event
-    var dRevs = (this.cwr > 0 ? event.cwr - this.cwr : 0);
-    this.cwr = event.cwr;
-    
-    console.log("Event");
 
-    // Increment the trip revolutions counter
-    this.cwrTrip += dRevs;
-
-    // Calculate time delta since last wheel event
-    var dT = (event.lwet - this.lwet)/1024;
-    var now = Date.now();
-    var dBT = (now-this.lastBangleTime)/1000;
-    this.lastBangleTime = now;
-    if (dT<0) dT+=64;  // wheel event time wraps every 64s
-    if (Math.abs(dT-dBT)>3) dT = dBT;  // not sure about the reason for this
-    this.lwet = event.lwet;
-
-    // Recalculate current speed
-    if (dRevs>0 && dT>0) {
-      this.speed = dRevs * this.wheelCirc / dT;
-      this.speedFailed = 0;
-      this.movingTime += dT;
-    } else {
-      this.speedFailed++;
-      if (this.speedFailed>3) {
-        this.speed = 0;
-      }
-    }
-
-    // Update max speed
-    if (this.speed>this.maxSpeed
-      && (this.movingTime>3 || this.speed<20)
-      && this.speed<50
-    ) this.maxSpeed = this.speed;
+    this.speed = event.cwr / 100;
+    this.maxSpeed = event.lwet / 10;
+    this.speedFailed = 0;
+    console.log("Main Event", this.speed);
 
     this.updateScreen();
   }
@@ -272,38 +239,7 @@ class CSCDisplay {
         },
       ],
     });
-    this.layouts.distance = new Layout({
-      type: "v",
-      bgCol: "#fff",
-      c: [
-        {
-          type: "h",
-          id: "tripd_g",
-          fillx: 1,
-          pad: 4,
-          bgCol: "#fff",
-          height: 32,
-          c: [
-            {type: "txt", id: "tripd_l", label: "TRP", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 36},
-            {type: "txt", id: "tripd", label: "0", font: this.fontMed, bgCol: "#fff", col: "#000", width: 118},
-            {type: "txt", id: "tripd_u", label: "km", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
-          ]
-        },
-        {
-          type: "h",
-          id: "totald_g",
-          fillx: 1,
-          pad: 4,
-          bgCol: "#fff",
-          height: 32,
-          c: [
-            {type: "txt", id: "totald_l", label: "TTL", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 36},
-            {type: "txt", id: "totald", label: "0", font: this.fontMed, bgCol: "#fff", col: "#000", width: 118},
-            {type: "txt", id: "totald_u", label: "km", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
-          ]
-        },
-      ],
-    });
+    
     this.layouts.status = new Layout({
       type: "v",
       c: [
@@ -356,10 +292,6 @@ class CSCDisplay {
     this.layouts.speed.speed_u.label = speedUnit;
     this.layouts.speed.stats_u.label = speedUnit;
 
-    var distanceUnit = metric ? "km" : "mi";
-    this.layouts.distance.tripd_u.label = distanceUnit;
-    this.layouts.distance.totald_u.label = distanceUnit;
-
     this.updateLayout(this.currentLayout);
   }
 
@@ -369,7 +301,7 @@ class CSCDisplay {
   }
 
   convertSpeed(mps) {
-    if (this.metric) return mps * 3.6;
+    if (this.metric) return mps;
     return mps * 2.23694;
   }
 
@@ -403,21 +335,6 @@ class CSCDisplay {
 
     this.layouts.speed.time.label = time;
     this.renderIfLayoutActive("speed", this.layouts.speed.time_g);
-  }
-
-  setTripDistance(distance) {
-    this.layouts.distance.tripd.label = this.convertDistance(distance).toFixed(1);
-    this.renderIfLayoutActive("distance", this.layouts.distance.tripd_g);
-  }
-
-  setTotalDistance(distance) {
-    distance = this.convertDistance(distance);
-    if (distance >= 1000) {
-      this.layouts.distance.totald.label = String(Math.round(distance));
-    } else {
-      this.layouts.distance.totald.label = distance.toFixed(1);
-    }
-    this.renderIfLayoutActive("distance", this.layouts.distance.totald_g);
   }
 
   setDeviceAddress(address) {
