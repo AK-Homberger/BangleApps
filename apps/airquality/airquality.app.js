@@ -139,7 +139,7 @@ class CSCDisplay {
       c: [
         {
           type: "h",
-          id: "air_g",
+          id: "time_g",
           fillx: 1,
           filly: 1,
           pad: 4,
@@ -152,7 +152,7 @@ class CSCDisplay {
         },
         {
           type: "h",
-          id: "time_g",
+          id: "air_g",
           fillx: 1,
           pad: 4,
           bgCol: "#000",
@@ -239,17 +239,17 @@ class CSCDisplay {
 
   setCO2(val) {
     this.layouts.data.air.label = val;
-    this.renderIfLayoutActive("speed", this.layouts.data.air_g);
+    this.renderIfLayoutActive("data", this.layouts.data.air_g);
   }
 
   setHum(val) {
     this.layouts.data.hum.label = val.toFixed(1);
-    this.renderIfLayoutActive("speed", this.layouts.data.stats_g);
+    this.renderIfLayoutActive("data", this.layouts.data.stats_g);
   }
 
   setTemp(val) {
     this.layouts.data.temp.label = val.toFixed(1);
-    this.renderIfLayoutActive("speed", this.layouts.data.stats_g);
+    this.renderIfLayoutActive("data", this.layouts.data.stats_g);
   }
 
   setTime() {
@@ -261,7 +261,7 @@ class CSCDisplay {
     var time = hh + ':' + mm;
 
     this.layouts.data.time.label = time;
-    this.renderIfLayoutActive("speed", this.layouts.data.time_g);
+    this.renderIfLayoutActive("data", this.layouts.data.time_g);
   }
 
   setDeviceAddress(address) {
