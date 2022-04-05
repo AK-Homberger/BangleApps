@@ -11,6 +11,6 @@
   "storage": [
     {"name":"airquality.app.js","url":"airquality.app.js"},
     {"name":"blecsc","url":"blecsc.js"},
-    {"name":"cycling.img","url":"cycling.icon.js","evaluate": true}
+    {"name":"cycling.img","url":"airquality.icon.js","evaluate": true}
   ]
 }
