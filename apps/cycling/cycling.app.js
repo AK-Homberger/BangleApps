@@ -28,6 +28,8 @@ class CSCSensor {
     this.cwrTrip = 0;                 // wheel revolutions since trip start
     this.speed = 0;                   // unit: m/s
     this.maxSpeed = 0;                // unit: m/s
+    this.eCO2 = 0;                // unit: m/s
+    
     this.speedFailed = 0;
 
     // Other runtime variables
@@ -154,7 +156,7 @@ class CSCSensor {
     var avgSpeed = this.movingTime > 3 ? tripDist / this.movingTime : 0;
 
     this.display.setSpeed(this.speed);
-    this.display.setAvg(avgSpeed);
+    this.display.setAvg(this.eCO2);
     this.display.setMax(this.maxSpeed);
     this.display.setTime(Math.floor(this.movingTime));
   }
@@ -162,11 +164,11 @@ class CSCSensor {
   onWheelEvent(event) {
     // Calculate number of revolutions since last wheel event
 
-    this.speed = event.temp / 100;
+    this.speed = event.eCO2;
     this.maxSpeed = event.hum / 10;
-    this.eCO2 = event.eCO2
+    this.eCO2 = event.temp / 100;
     this.speedFailed = 0;
-    console.log("Main Event", this.speed);
+    console.log("Main Event",  this.eCO2);
 
     this.updateScreen();
   }
