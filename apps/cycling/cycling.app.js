@@ -167,6 +167,8 @@ class CSCSensor {
     // Calculate number of revolutions since last wheel event
     var dRevs = (this.cwr > 0 ? event.cwr - this.cwr : 0);
     this.cwr = event.cwr;
+    
+    console.log("Event");
 
     // Increment the trip revolutions counter
     this.cwrTrip += dRevs;
