@@ -66,8 +66,7 @@ class BLECSC {
     const flags = event.target.value.getUint8(0, true);
     // Notify the 'wheelEvent' handler
     if ((flags & FLAGS_WREV_BM) && this.handlers.wheelEvent) this.handlers.wheelEvent({
-      console.log("Wheel Event");
-      cwr: event.target.value.getUint32(1, true),  // cumulative wheel revolutions
+      cwr: event.target.value.getUint16(1, true),  // cumulative wheel revolutions
       lwet: event.target.value.getUint16(5, true), // last wheel event time
     });
 
