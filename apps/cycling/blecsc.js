@@ -59,13 +59,14 @@ class BLECSC {
   onValue(event) {
     // Not interested in non-CSC characteristics
     // if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
-    console.log("Event");
+    
     // Notify the generic 'value' handler
     if (this.handlers.value) this.handlers.value(event);
 
     const flags = event.target.value.getUint8(0, true);
     // Notify the 'wheelEvent' handler
     if ((flags & FLAGS_WREV_BM) && this.handlers.wheelEvent) this.handlers.wheelEvent({
+      console.log("Wheel Event");
       cwr: event.target.value.getUint32(1, true),  // cumulative wheel revolutions
       lwet: event.target.value.getUint16(5, true), // last wheel event time
     });
