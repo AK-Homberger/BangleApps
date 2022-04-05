@@ -66,8 +66,9 @@ class BLECSC {
     const flags = event.target.value.getUint8(0, true);
     // Notify the 'wheelEvent' handler
     if ((flags & FLAGS_WREV_BM) && this.handlers.wheelEvent) this.handlers.wheelEvent({
-      cwr: event.target.value.getUint16(1, true),  // cumulative wheel revolutions
-      lwet: event.target.value.getUint16(3, true), // last wheel event time
+      temp: event.target.value.getUint16(1, true),  // cumulative wheel revolutions
+      hum: event.target.value.getUint16(3, true), // last wheel event time
+      eCO2: event.target.value.getUint16(3, true), // last wheel event time
     });
 
     // Notify the 'crankEvent' handler
