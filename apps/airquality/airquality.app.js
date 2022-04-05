@@ -155,12 +155,12 @@ class CSCDisplay {
           id: "air_g",
           fillx: 1,
           pad: 4,
-          bgCol: "#000",
+          bgCol: "#fff",
           height: 36,
           c: [
             {type: undefined, width: 32, halign: -1},
-            {type: "txt", id: "air", label: "000", font: this.fontMed, bgCol: "#000", col: "#fff", width: 122},
-            {type: "txt", id: "air_u", label: " ppm ", font: this.fontLabel, bgCol: "#000", col: "#fff", width: 22, r: 90},
+            {type: "txt", id: "air", label: "000", font: this.fontMed, bgCol: "#fff", col: "#000", width: 122},
+            {type: "txt", id: "air_u", label: " ppm ", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
           ]
         },
         {
