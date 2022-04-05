@@ -2,7 +2,6 @@ const Layout = require('Layout');
 const storage = require('Storage');
 
 const RECONNECT_TIMEOUT = 4000;
-const MAX_CONN_ATTEMPTS = 100;
 
 class CSCSensor {
   constructor(blecsc, display) {
@@ -59,7 +58,7 @@ class CSCSensor {
         this.display.setDeviceAddress(this.deviceAddress);
         this.display.setStatus("Connected");
 
-        // Switch to speed screen in 2s
+        // Switch to data screen in 2s
         setTimeout(function() {
           this.setLayout(1);
           this.updateScreen();
@@ -83,7 +82,7 @@ class CSCSensor {
     if (this.layout == 0) {
       this.display.updateLayout("status");
     } else if (this.layout == 1) {
-      this.display.updateLayout("speed");
+      this.display.updateLayout("data");
     } 
   }
 
@@ -115,7 +114,7 @@ class CSCSensor {
   }
 
   onWheelEvent(event) {
-    // Calculate number of revolutions since last wheel event
+    // Get data
 
     this.temp= event.temp / 100;
     this.hum = event.hum / 10;
@@ -135,20 +134,20 @@ class CSCDisplay {
     this.fontLarge = "32%";
     this.currentLayout = "status";
     this.layouts = {};
-    this.layouts.speed = new Layout({
+    this.layouts.data = new Layout({
       type: "v",
       c: [
         {
           type: "h",
-          id: "speed_g",
+          id: "air_g",
           fillx: 1,
           filly: 1,
           pad: 4,
           bgCol: "#fff",
           c: [
             {type: undefined, width: 32, halign: -1},
-            {type: "txt", id: "speed", label: "000", font: this.fontLarge, bgCol: "#fff", col: "#000", width: 122},
-            {type: "txt", id: "speed_u", label: " ppm ", font: this.fontLabel, col: "#000", width: 22, r: 90},
+            {type: "txt", id: "time", label: "00:00", font: this.fontLarge, bgCol: "#fff", col: "#000", width: 122},
+            {type: "txt", id: "time_u", label: " ppm ", font: this.fontLabel, col: "#000", width: 22, r: 90},
           ]
         },
         {
@@ -160,8 +159,8 @@ class CSCDisplay {
           height: 36,
           c: [
             {type: undefined, width: 32, halign: -1},
-            {type: "txt", id: "time", label: "00:00", font: this.fontMed, bgCol: "#000", col: "#fff", width: 122},
-            {type: "txt", id: "time_u", label: " ", font: this.fontLabel, bgCol: "#000", col: "#fff", width: 22, r: 90},
+            {type: "txt", id: "air", label: "000", font: this.fontMed, bgCol: "#000", col: "#fff", width: 122},
+            {type: "txt", id: "air_u", label: " ppm ", font: this.fontLabel, bgCol: "#000", col: "#fff", width: 22, r: 90},
           ]
         },
         {
@@ -176,8 +175,8 @@ class CSCDisplay {
               pad: 4,
               bgCol: "#fff",
               c: [
-                {type: "txt", id: "max_l", label: "Temp", font: this.fontLabel, col: "#000"},
-                {type: "txt", id: "max", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
+                {type: "txt", id: "temp_l", label: "Temp", font: this.fontLabel, col: "#000"},
+                {type: "txt", id: "temp", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
               ],
             },
             {
@@ -185,8 +184,8 @@ class CSCDisplay {
               pad: 4,
               bgCol: "#fff",
               c: [
-                {type: "txt", id: "avg_l", label: "Hum", font: this.fontLabel, col: "#000"},
-                {type: "txt", id: "avg", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
+                {type: "txt", id: "hum_l", label: "Hum", font: this.fontLabel, col: "#000"},
+                {type: "txt", id: "hum", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
               ],
             },
             {type: "txt", id: "stats_u", label: " ", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
@@ -239,18 +238,18 @@ class CSCDisplay {
   }
 
   setCO2(val) {
-    this.layouts.speed.speed.label = val;
-    this.renderIfLayoutActive("speed", this.layouts.speed.speed_g);
+    this.layouts.data.air.label = val;
+    this.renderIfLayoutActive("speed", this.layouts.data.air_g);
   }
 
   setHum(val) {
-    this.layouts.speed.avg.label = val.toFixed(1);
-    this.renderIfLayoutActive("speed", this.layouts.speed.stats_g);
+    this.layouts.data.hum.label = val.toFixed(1);
+    this.renderIfLayoutActive("speed", this.layouts.data.stats_g);
   }
 
   setTemp(val) {
-    this.layouts.speed.max.label = val.toFixed(1);
-    this.renderIfLayoutActive("speed", this.layouts.speed.stats_g);
+    this.layouts.data.temp.label = val.toFixed(1);
+    this.renderIfLayoutActive("speed", this.layouts.data.stats_g);
   }
 
   setTime() {
@@ -261,8 +260,8 @@ class CSCDisplay {
 
     var time = hh + ':' + mm;
 
-    this.layouts.speed.time.label = time;
-    this.renderIfLayoutActive("speed", this.layouts.speed.time_g);
+    this.layouts.data.time.label = time;
+    this.renderIfLayoutActive("speed", this.layouts.data.time_g);
   }
 
   setDeviceAddress(address) {
