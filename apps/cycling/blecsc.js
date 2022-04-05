@@ -58,24 +58,22 @@ class BLECSC {
    */
   onValue(event) {
     // Not interested in non-CSC characteristics
-    //if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
+    if (event.target.uuid != "0x" + MEASUREMENT_UUID) return;
 
-    E.showMessage("Event", "My Timer");
-    
     // Notify the generic 'value' handler
     if (this.handlers.value) this.handlers.value(event);
 
     const flags = event.target.value.getUint8(0, true);
     // Notify the 'wheelEvent' handler
     if ((flags & FLAGS_WREV_BM) && this.handlers.wheelEvent) this.handlers.wheelEvent({
-      cwr: event.target.value.getUint16(1, true),  // cumulative wheel revolutions
-      lwet: event.target.value.getUint16(3, true), // last wheel event time
+      cwr: event.target.value.getUint32(1, true),  // cumulative wheel revolutions
+      lwet: event.target.value.getUint16(5, true), // last wheel event time
     });
 
     // Notify the 'crankEvent' handler
     if ((flags & FLAGS_CREV_BM) && this.handlers.crankEvent) this.handlers.crankEvent({
-      ccr: event.target.value.getUint16(5, true),  // cumulative crank revolutions
-      lcet: event.target.value.getUint16(7, true), // last crank event time
+      ccr: event.target.value.getUint16(7, true),  // cumulative crank revolutions
+      lcet: event.target.value.getUint16(9, true), // last crank event time
     });
   }
 
