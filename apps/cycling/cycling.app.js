@@ -1,269 +1,453 @@
-var device;
-var gatt;
-var service;
-var characteristic;
-
-const SETTINGS_FILE = 'cscsensor.json';
+const Layout = require('Layout');
 const storage = require('Storage');
-const W = g.getWidth();
-const H = g.getHeight();
-const yStart = 48;
-const rowHeight = (H-yStart)/6;
-const yCol1 = W/2.7586;
-const fontSizeLabel = W/12.632;
-const fontSizeValue = W/9.2308;
+
+const SETTINGS_FILE = 'cycling.json';
+const SETTINGS_DEFAULT = {
+  sensors: {},
+  metric: true,
+};
+
+const RECONNECT_TIMEOUT = 4000;
+const MAX_CONN_ATTEMPTS = 2;
 
 class CSCSensor {
-  constructor() {
-    this.movingTime = 0;
-    this.lastTime = 0;
-    this.lastBangleTime = Date.now();
-    this.lastRevs = -1;
-    this.settings = storage.readJSON(SETTINGS_FILE, 1) || {};
-    this.settings.totaldist = this.settings.totaldist || 0;
-    this.totaldist = this.settings.totaldist;
-    this.wheelCirc = (this.settings.wheelcirc || 2230)/25.4;
+  constructor(blecsc, display) {
+    // Dependency injection
+    this.blecsc = blecsc;
+    this.display = display;
+
+    // Load settings
+    this.settings = storage.readJSON(SETTINGS_FILE, true) || SETTINGS_DEFAULT;
+    this.wheelCirc = undefined;
+
+    // CSC runtime variables
+    this.movingTime = 0;              // unit: s
+    this.lastBangleTime = Date.now(); // unit: ms
+    this.lwet = 0;                    // last wheel event time (unit: s/1024)
+    this.cwr = -1;                    // cumulative wheel revolutions
+    this.cwrTrip = 0;                 // wheel revolutions since trip start
+    this.speed = 0;                   // unit: m/s
+    this.maxSpeed = 0;                // unit: m/s
     this.speedFailed = 0;
-    this.speed = 0;
-    this.maxSpeed = 0;
-    this.lastSpeed = 0;
-    this.lastRevsStart = -1;
-    this.qMetric = !require("locale").speed(1).toString().endsWith("mph");
-    this.speedUnit = this.qMetric ? "km/h" : "mph";
-    this.distUnit = this.qMetric ? "km" : "mi";
-    this.distFactor = this.qMetric ? 1.609344 : 1;
-    this.screenInit = true;
-    this.batteryLevel = -1;
-    this.lastCrankTime = 0;
-    this.lastCrankRevs = 0;
-    this.showCadence = false;
-    this.cadence = 0;
+
+    // Other runtime variables
+    this.connected = false;
+    this.failedAttempts = 0;
+    this.failed = false;
+
+    // Layout configuration
+    this.layout = 0;
+    this.display.useMetricUnits(true);
+    this.deviceAddress = undefined;
+    this.display.useMetricUnits((this.settings.metric));
+  }
+
+  onDisconnect(event) {
+    console.log("disconnected ", event);
+
+    this.connected = false;
+    this.wheelCirc = undefined;
+
+    this.setLayout(0);
+    this.display.setDeviceAddress("unknown");
+
+    if (this.failedAttempts >= MAX_CONN_ATTEMPTS) {
+      this.failed = true;
+      this.display.setStatus("Connection failed after " + MAX_CONN_ATTEMPTS + " attempts.");
+    } else {
+      this.display.setStatus("Disconnected");
+      setTimeout(this.connect.bind(this), RECONNECT_TIMEOUT);
+    }
+  }
+
+  loadCircumference() {
+    if (!this.deviceAddress) return;
+
+    // Add sensor to settings if not present
+    if (!this.settings.sensors[this.deviceAddress]) {
+      this.settings.sensors[this.deviceAddress] = {
+        cm: 223,
+        mm: 0,
+      };
+      storage.writeJSON(SETTINGS_FILE, this.settings);
+    }
+
+    const high = this.settings.sensors[this.deviceAddress].cm || 223;
+    const low = this.settings.sensors[this.deviceAddress].mm || 0;
+    this.wheelCirc = (10*high + low) / 1000;
+  }
+
+  connect() {
+    this.connected = false;
+    this.setLayout(0);
+    this.display.setStatus("Connecting");
+    console.log("Trying to connect to BLE CSC");
+
+    // Hook up events
+    this.blecsc.on('wheelEvent', this.onWheelEvent.bind(this));
+    this.blecsc.on('disconnect', this.onDisconnect.bind(this));
+
+    // Scan for BLE device and connect
+    this.blecsc.connect()
+      .then(function() {
+        this.failedAttempts = 0;
+        this.failed = false;
+        this.connected = true;
+        this.deviceAddress = this.blecsc.getDeviceAddress();
+        console.log("Connected to " + this.deviceAddress);
+
+        this.display.setDeviceAddress(this.deviceAddress);
+        this.display.setStatus("Connected");
+
+        this.loadCircumference();
+
+        // Switch to speed screen in 2s
+        setTimeout(function() {
+          this.setLayout(1);
+          this.updateScreen();
+        }.bind(this), 2000);
+      }.bind(this))
+      .catch(function(e) {
+        this.failedAttempts++;
+        this.onDisconnect(e);
+      }.bind(this));
+  }
+
+  disconnect() {
+    this.blecsc.disconnect();
+    this.reset();
+    this.setLayout(0);
+    this.display.setStatus("Disconnected");
+  }
+
+  setLayout(num) {
+    this.layout = num;
+    if (this.layout == 0) {
+      this.display.updateLayout("status");
+    } else if (this.layout == 1) {
+      this.display.updateLayout("speed");
+    } else if (this.layout == 2) {
+      this.display.updateLayout("distance");
+    }
   }
 
   reset() {
-    this.settings.totaldist = this.totaldist;
-    storage.writeJSON(SETTINGS_FILE, this.settings);
-    this.maxSpeed = 0;
-    this.movingTime = 0;
-    this.lastRevsStart = this.lastRevs;
-    this.maxSpeed = 0;
-    this.screenInit = true;
+    this.connected = false;
+    this.failed = false;
+    this.failedAttempts = 0;
+    this.wheelCirc = undefined;
   }
 
-  toggleDisplayCadence() {
-    this.showCadence = !this.showCadence;
-    this.screenInit = true;
-    g.setBgColor(0, 0, 0);
-  }
+  interact(d) {
+    // Only interested in tap / center button
+    if (d) return;
 
-  setBatteryLevel(level) {
-    if (level!=this.batteryLevel) {
-      this.batteryLevel = level;
-      this.drawBatteryIcon();
+    // Reconnect in failed state
+    if (this.failed) {
+      this.reset();
+      this.connect();
+    } else if (this.connected) {
+      this.setLayout((this.layout + 1) % 3);
     }
-  }
-
-  updateBatteryLevel(event) {
-    if (event.target.uuid == "0x2a19") this.setBatteryLevel(event.target.value.getUint8(0));
-  }
-
-  drawBatteryIcon() {
-    g.setColor(1, 1, 1).drawRect(10*W/240, yStart+0.029167*H, 20*W/240, yStart+0.1125*H)
-      .fillRect(14*W/240, yStart+0.020833*H, 16*W/240, yStart+0.029167*H)
-      .setColor(0).fillRect(11*W/240, yStart+0.033333*H, 19*W/240, yStart+0.10833*H);
-    if (this.batteryLevel!=-1) {
-      if (this.batteryLevel<25) g.setColor(1, 0, 0);
-      else if (this.batteryLevel<50) g.setColor(1, 0.5, 0);
-      else g.setColor(0, 1, 0);
-      g.fillRect(11*W/240, (yStart+0.10833*H)-18*this.batteryLevel/100, 19*W/240, yStart+0.10833*H);
-    }
-    else g.setFontVector(W/17.143).setFontAlign(0, 0, 0).setColor(0xffff).drawString("?", 16*W/240, yStart+0.075*H);
-  }
-
-  updateScreenRevs() {
-    var dist = this.distFactor*(this.lastRevs-this.lastRevsStart)*this.wheelCirc/63360.0;
-    var ddist = Math.round(100*dist)/100;
-    var tdist = Math.round(this.distFactor*this.totaldist*10)/10;
-    var dspeed = Math.round(10*this.distFactor*this.speed)/10;
-    var dmins = Math.floor(this.movingTime/60).toString();
-    if (dmins.length<2) dmins = "0"+dmins;
-    var dsecs = (Math.floor(this.movingTime) % 60).toString();
-    if (dsecs.length<2) dsecs = "0"+dsecs;
-    var avespeed = (this.movingTime>3 ? Math.round(10*dist/(this.movingTime/3600))/10 : 0);
-    var maxspeed = Math.round(10*this.distFactor*this.maxSpeed)/10;
-    if (this.screenInit) {
-      for (var i=0; i<6; ++i) {
-        if ((i&1)==0) g.setColor(0, 0, 0);
-        else g.setColor(0x30cd);
-        g.fillRect(0, yStart+i*rowHeight, yCol1-1, yStart+(i+1)*rowHeight);
-        if ((i&1)==1) g.setColor(0);
-        else g.setColor(0x30cd);
-        g.fillRect(yCol1, yStart+i*rowHeight, H-1, yStart+(i+1)*rowHeight);
-        g.setColor(0.5, 0.5, 0.5).drawRect(yCol1, yStart+i*rowHeight, H-1, yStart+(i+1)*rowHeight).drawLine(0, H-1, W-1, H-1);
-        g.moveTo(0, yStart+0.13333*H).lineTo(30*W/240, yStart+0.13333*H).lineTo(30*W/240, yStart).lineTo(yCol1, yStart).lineTo(yCol1, H-1).lineTo(0, H-1).lineTo(0, yStart+0.13333*H);
-      }
-      g.setFontAlign(1, 0, 0).setFontVector(fontSizeLabel).setColor(1, 1, 0);
-      g.drawString("Time:", yCol1, yStart+rowHeight/2+0*rowHeight);
-      g.drawString("Speed:", yCol1, yStart+rowHeight/2+1*rowHeight);
-      g.drawString("Avg spd:", yCol1, yStart+rowHeight/2+2*rowHeight);
-      g.drawString("Max spd:", yCol1, yStart+rowHeight/2+3*rowHeight);
-      g.drawString("Trip:", yCol1, yStart+rowHeight/2+4*rowHeight);
-      g.drawString("Total:", yCol1, yStart+rowHeight/2+5*rowHeight);
-      this.drawBatteryIcon();
-      this.screenInit = false;
-    }
-    g.setFontAlign(-1, 0, 0).setFontVector(fontSizeValue);
-    g.setColor(0x30cd).fillRect(yCol1+1, 49+rowHeight*0, 238, 47+1*rowHeight);
-    g.setColor(0xffff).drawString(dmins+":"+dsecs, yCol1+5, 50+rowHeight/2+0*rowHeight);
-    g.setColor(0).fillRect(yCol1+1, 49+rowHeight*1, 238, 47+2*rowHeight);
-    g.setColor(0xffff).drawString(dspeed+" "+this.speedUnit, yCol1+5, 50+rowHeight/2+1*rowHeight);
-    g.setColor(0x30cd).fillRect(yCol1+1, 49+rowHeight*2, 238, 47+3*rowHeight);
-    g.setColor(0xffff).drawString(avespeed + " " + this.speedUnit, yCol1+5, 50+rowHeight/2+2*rowHeight);
-    g.setColor(0).fillRect(yCol1+1, 49+rowHeight*3, 238, 47+4*rowHeight);
-    g.setColor(0xffff).drawString(maxspeed + " " + this.speedUnit, yCol1+5, 50+rowHeight/2+3*rowHeight);
-    g.setColor(0x30cd).fillRect(yCol1+1, 49+rowHeight*4, 238, 47+5*rowHeight);
-    g.setColor(0xffff).drawString(ddist + " " + this.distUnit, yCol1+5, 50+rowHeight/2+4*rowHeight);
-    g.setColor(0).fillRect(yCol1+1, 49+rowHeight*5, 238, 47+6*rowHeight);
-    g.setColor(0xffff).drawString(tdist + " " + this.distUnit, yCol1+5, 50+rowHeight/2+5*rowHeight);
-  }
-
-  updateScreenCadence() {
-    if (this.screenInit) {
-      for (var i=0; i<2; ++i) {
-        if ((i&1)==0) g.setColor(0, 0, 0);
-        else g.setColor(0x30cd);
-        g.fillRect(0, yStart+i*rowHeight, yCol1-1, yStart+(i+1)*rowHeight);
-        if ((i&1)==1) g.setColor(0);
-        else g.setColor(0x30cd);
-        g.fillRect(yCol1, yStart+i*rowHeight, H-1, yStart+(i+1)*rowHeight);
-        g.setColor(0.5, 0.5, 0.5).drawRect(yCol1, yStart+i*rowHeight, H-1, yStart+(i+1)*rowHeight).drawLine(0, H-1, W-1, H-1);
-        g.moveTo(0, yStart+0.13333*H).lineTo(30*W/240, yStart+0.13333*H).lineTo(30*W/240, yStart).lineTo(yCol1, yStart).lineTo(yCol1, H-1).lineTo(0, H-1).lineTo(0, yStart+0.13333*H);
-      }
-      g.setFontAlign(1, 0, 0).setFontVector(fontSizeLabel).setColor(1, 1, 0);
-      g.drawString("Cadence:", yCol1, yStart+rowHeight/2+1*rowHeight);
-      this.drawBatteryIcon();
-      this.screenInit = false;
-    }
-    g.setFontAlign(-1, 0, 0).setFontVector(fontSizeValue);
-    g.setColor(0).fillRect(yCol1+1, 49+rowHeight*1, 238, 47+2*rowHeight);
-    g.setColor(0xffff).drawString(Math.round(this.cadence), yCol1+5, 50+rowHeight/2+1*rowHeight);
   }
 
   updateScreen() {
-    if (!this.showCadence) {
-      this.updateScreenRevs();
-    } else {
-      this.updateScreenCadence();
-    }
+    var tripDist = this.cwrTrip * this.wheelCirc;
+    var avgSpeed = this.movingTime > 3 ? tripDist / this.movingTime : 0;
+
+    this.display.setTotalDistance(this.cwr * this.wheelCirc);
+    this.display.setTripDistance(tripDist);
+    this.display.setSpeed(this.speed);
+    this.display.setAvg(avgSpeed);
+    this.display.setMax(this.maxSpeed);
+    this.display.setTime(Math.floor(this.movingTime));
   }
 
-  updateSensor(event) {
-    var qChanged = false;
-    if (event.target.uuid == "0x2a5b") {
-      if (event.target.value.getUint8(0, true) & 0x2) {
-        // crank revolution - if enabled
-        const crankRevs = event.target.value.getUint16(1, true);
-        const crankTime = event.target.value.getUint16(3, true);
-        if (crankTime > this.lastCrankTime) {
-          this.cadence = (crankRevs-this.lastCrankRevs)/(crankTime-this.lastCrankTime)*(60*1024);
-          qChanged = true;
-        }
-        this.lastCrankRevs = crankRevs;
-        this.lastCrankTime = crankTime;
-      } else {
-        // wheel revolution
-        var wheelRevs = event.target.value.getUint32(1, true);
-        var dRevs = (this.lastRevs>0 ? wheelRevs-this.lastRevs : 0);
-        if (dRevs>0) {
-          qChanged = true;
-          this.totaldist += dRevs*this.wheelCirc/63360.0;
-          if ((this.totaldist-this.settings.totaldist)>0.1) {
-            this.settings.totaldist = this.totaldist;
-            storage.writeJSON(SETTINGS_FILE, this.settings);
-          }
-        }
-        this.lastRevs = wheelRevs;
-        if (this.lastRevsStart<0) this.lastRevsStart = wheelRevs;
-        var wheelTime = event.target.value.getUint16(5, true);
-        var dT = (wheelTime-this.lastTime)/1024;
-        var dBT = (Date.now()-this.lastBangleTime)/1000;
-        this.lastBangleTime = Date.now();
-        if (dT<0) dT+=64;
-        if (Math.abs(dT-dBT)>3) dT = dBT;
-        this.lastTime = wheelTime;
-        this.speed = this.lastSpeed;
-        if (dRevs>0 && dT>0) {
-          this.speed = (dRevs*this.wheelCirc/63360.0)*3600/dT;
-          this.speedFailed = 0;
-          this.movingTime += dT;
-        } else if (!this.showCadence) {
-          this.speedFailed++;
-          qChanged = false;
-          if (this.speedFailed>3) {
-            this.speed = 0;
-            qChanged = (this.lastSpeed>0);
-          }
-        }
-        this.lastSpeed = this.speed;
-        if (this.speed>this.maxSpeed && (this.movingTime>3 || this.speed<20) && this.speed<50) this.maxSpeed = this.speed;
+  onWheelEvent(event) {
+    // Calculate number of revolutions since last wheel event
+    var dRevs = (this.cwr > 0 ? event.cwr - this.cwr : 0);
+    this.cwr = event.cwr;
+
+    // Increment the trip revolutions counter
+    this.cwrTrip += dRevs;
+
+    // Calculate time delta since last wheel event
+    var dT = (event.lwet - this.lwet)/1024;
+    var now = Date.now();
+    var dBT = (now-this.lastBangleTime)/1000;
+    this.lastBangleTime = now;
+    if (dT<0) dT+=64;  // wheel event time wraps every 64s
+    if (Math.abs(dT-dBT)>3) dT = dBT;  // not sure about the reason for this
+    this.lwet = event.lwet;
+
+    // Recalculate current speed
+    if (dRevs>0 && dT>0) {
+      this.speed = dRevs * this.wheelCirc / dT;
+      this.speedFailed = 0;
+      this.movingTime += dT;
+    } else {
+      this.speedFailed++;
+      if (this.speedFailed>3) {
+        this.speed = 0;
       }
     }
-    if (qChanged) this.updateScreen();
+
+    // Update max speed
+    if (this.speed>this.maxSpeed
+      && (this.movingTime>3 || this.speed<20)
+      && this.speed<50
+    ) this.maxSpeed = this.speed;
+
+    this.updateScreen();
   }
 }
 
-var mySensor = new CSCSensor();
+class CSCDisplay {
+  constructor() {
+    this.metric = true;
+    this.fontLabel = "6x8";
+    this.fontSmall = "15%";
+    this.fontMed = "18%";
+    this.fontLarge = "32%";
+    this.currentLayout = "status";
+    this.layouts = {};
+    this.layouts.speed = new Layout({
+      type: "v",
+      c: [
+        {
+          type: "h",
+          id: "speed_g",
+          fillx: 1,
+          filly: 1,
+          pad: 4,
+          bgCol: "#fff",
+          c: [
+            {type: undefined, width: 32, halign: -1},
+            {type: "txt", id: "speed", label: "00.0", font: this.fontLarge, bgCol: "#fff", col: "#000", width: 122},
+            {type: "txt", id: "speed_u", label: "  km/h", font: this.fontLabel, col: "#000", width: 22, r: 90},
+          ]
+        },
+        {
+          type: "h",
+          id: "time_g",
+          fillx: 1,
+          pad: 4,
+          bgCol: "#000",
+          height: 36,
+          c: [
+            {type: undefined, width: 32, halign: -1},
+            {type: "txt", id: "time", label: "00:00", font: this.fontMed, bgCol: "#000", col: "#fff", width: 122},
+            {type: "txt", id: "time_u", label: "mins", font: this.fontLabel, bgCol: "#000", col: "#fff", width: 22, r: 90},
+          ]
+        },
+        {
+          type: "h",
+          id: "stats_g",
+          fillx: 1,
+          bgCol: "#fff",
+          height: 36,
+          c: [
+            {
+              type: "v",
+              pad: 4,
+              bgCol: "#fff",
+              c: [
+                {type: "txt", id: "max_l", label: "MAX", font: this.fontLabel, col: "#000"},
+                {type: "txt", id: "max", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
+              ],
+            },
+            {
+              type: "v",
+              pad: 4,
+              bgCol: "#fff",
+              c: [
+                {type: "txt", id: "avg_l", label: "AVG", font: this.fontLabel, col: "#000"},
+                {type: "txt", id: "avg", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
+              ],
+            },
+            {type: "txt", id: "stats_u", label: " km/h", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
+          ]
+        },
+      ],
+    });
+    this.layouts.distance = new Layout({
+      type: "v",
+      bgCol: "#fff",
+      c: [
+        {
+          type: "h",
+          id: "tripd_g",
+          fillx: 1,
+          pad: 4,
+          bgCol: "#fff",
+          height: 32,
+          c: [
+            {type: "txt", id: "tripd_l", label: "TRP", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 36},
+            {type: "txt", id: "tripd", label: "0", font: this.fontMed, bgCol: "#fff", col: "#000", width: 118},
+            {type: "txt", id: "tripd_u", label: "km", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
+          ]
+        },
+        {
+          type: "h",
+          id: "totald_g",
+          fillx: 1,
+          pad: 4,
+          bgCol: "#fff",
+          height: 32,
+          c: [
+            {type: "txt", id: "totald_l", label: "TTL", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 36},
+            {type: "txt", id: "totald", label: "0", font: this.fontMed, bgCol: "#fff", col: "#000", width: 118},
+            {type: "txt", id: "totald_u", label: "km", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
+          ]
+        },
+      ],
+    });
+    this.layouts.status = new Layout({
+      type: "v",
+      c: [
+        {
+          type: "h",
+          id: "status_g",
+          fillx: 1,
+          bgCol: "#fff",
+          height: 100,
+          c: [
+            {type: "txt", id: "status", label: "Bangle Cycling", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 176, wrap: 1},
+          ]
+        },
+        {
+          type: "h",
+          id: "addr_g",
+          fillx: 1,
+          pad: 4,
+          bgCol: "#fff",
+          height: 32,
+          c: [
+            { type: "txt", id: "addr_l", label: "ADDR", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 36 },
+            { type: "txt", id: "addr", label: "unknown", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 140 },
+          ]
+        },
+      ],
+    });
+  }
 
-function getSensorBatteryLevel(gatt) {
-  gatt.getPrimaryService("180f").then(function(s) {
-    return s.getCharacteristic("2a19");
-  }).then(function(c) {
-    c.on('characteristicvaluechanged', (event)=>mySensor.updateBatteryLevel(event));
-    return c.startNotifications();
-  });
+  updateLayout(layout) {
+    this.currentLayout = layout;
+
+    g.clear();
+    this.layouts[layout].update();
+    this.layouts[layout].render();
+    Bangle.drawWidgets();
+  }
+
+  renderIfLayoutActive(layout, node) {
+    if (layout != this.currentLayout) return;
+    this.layouts[layout].render(node);
+  }
+
+  useMetricUnits(metric) {
+    this.metric = metric;
+
+    // console.log("using " + (metric ? "metric" : "imperial") + " units");
+
+    var speedUnit = metric ? "km/h" : "mph";
+    this.layouts.speed.speed_u.label = speedUnit;
+    this.layouts.speed.stats_u.label = speedUnit;
+
+    var distanceUnit = metric ? "km" : "mi";
+    this.layouts.distance.tripd_u.label = distanceUnit;
+    this.layouts.distance.totald_u.label = distanceUnit;
+
+    this.updateLayout(this.currentLayout);
+  }
+
+  convertDistance(meters) {
+    if (this.metric) return meters / 1000;
+    return meters / 1609.344;
+  }
+
+  convertSpeed(mps) {
+    if (this.metric) return mps * 3.6;
+    return mps * 2.23694;
+  }
+
+  setSpeed(speed) {
+    this.layouts.speed.speed.label = this.convertSpeed(speed).toFixed(1);
+    this.renderIfLayoutActive("speed", this.layouts.speed.speed_g);
+  }
+
+  setAvg(speed) {
+    this.layouts.speed.avg.label = this.convertSpeed(speed).toFixed(1);
+    this.renderIfLayoutActive("speed", this.layouts.speed.stats_g);
+  }
+
+  setMax(speed) {
+    this.layouts.speed.max.label = this.convertSpeed(speed).toFixed(1);
+    this.renderIfLayoutActive("speed", this.layouts.speed.stats_g);
+  }
+
+  setTime(seconds) {
+    var time = '';
+    var hours = Math.floor(seconds/3600);
+    if (hours) {
+      time += hours + ":";
+      this.layouts.speed.time_u.label = " hrs";
+    } else {
+      this.layouts.speed.time_u.label = "mins";
+    }
+
+    time += String(Math.floor((seconds%3600)/60)).padStart(2, '0') + ":";
+    time += String(seconds % 60).padStart(2, '0');
+
+    this.layouts.speed.time.label = time;
+    this.renderIfLayoutActive("speed", this.layouts.speed.time_g);
+  }
+
+  setTripDistance(distance) {
+    this.layouts.distance.tripd.label = this.convertDistance(distance).toFixed(1);
+    this.renderIfLayoutActive("distance", this.layouts.distance.tripd_g);
+  }
+
+  setTotalDistance(distance) {
+    distance = this.convertDistance(distance);
+    if (distance >= 1000) {
+      this.layouts.distance.totald.label = String(Math.round(distance));
+    } else {
+      this.layouts.distance.totald.label = distance.toFixed(1);
+    }
+    this.renderIfLayoutActive("distance", this.layouts.distance.totald_g);
+  }
+
+  setDeviceAddress(address) {
+    this.layouts.status.addr.label = address;
+    this.renderIfLayoutActive("status", this.layouts.status.addr_g);
+  }
+
+  setStatus(status) {
+    this.layouts.status.status.label = status;
+    this.renderIfLayoutActive("status", this.layouts.status.status_g);
+  }
 }
 
-function connection_setup() {
-  mySensor.screenInit = true;
-  E.showMessage("Scanning for CSC sensor...");
-  NRF.requestDevice({ filters: [{services:["1816"]}]}).then(function(d) {
-    device = d;
-    E.showMessage("Found device");
-    return device.gatt.connect();
-  }).then(function(ga) {
-    gatt = ga;
-    E.showMessage("Connected");
-    return gatt.getPrimaryService("1816");
-  }).then(function(s) {
-    service = s;
-    return service.getCharacteristic("2a5b");
-  }).then(function(c) {
-    characteristic = c;
-    characteristic.on('characteristicvaluechanged', (event)=>mySensor.updateSensor(event));
-    return characteristic.startNotifications();
-  }).then(function() {
-    console.log("Done!");
-    g.reset().clearRect(Bangle.appRect).flip();
-    getSensorBatteryLevel(gatt);
-    mySensor.updateScreen();
-  }).catch(function(e) {
-    E.showMessage(e.toString(), "ERROR");
-    console.log(e);
-  });
+var BLECSC;
+if (process.env.BOARD === "EMSCRIPTEN" || process.env.BOARD === "EMSCRIPTEN2") {
+  // Emulator
+  BLECSC = require("blecsc-emu");
+} else {
+  // Actual hardware
+  BLECSC = require("blecsc");
 }
+var blecsc = new BLECSC();
+var display = new CSCDisplay();
+var sensor = new CSCSensor(blecsc, display);
 
-connection_setup();
 E.on('kill',()=>{
-  if (gatt!=undefined) gatt.disconnect();
-  mySensor.settings.totaldist = mySensor.totaldist;
-  storage.writeJSON(SETTINGS_FILE, mySensor.settings);
+  sensor.disconnect();
 });
-NRF.on('disconnect', connection_setup); // restart if disconnected
-Bangle.setUI("updown", d=>{
-  if (d<0) { mySensor.reset(); g.clearRect(0, yStart, W, H); mySensor.updateScreen(); }
-  else if (d>0) { if (Date.now()-mySensor.lastBangleTime>10000) connection_setup(); }
-  else { mySensor.toggleDisplayCadence(); g.clearRect(0, yStart, W, H); mySensor.updateScreen(); }
+
+Bangle.setUI("updown", d => {
+  sensor.interact(d);
 });
 
 Bangle.loadWidgets();
-Bangle.drawWidgets();
+sensor.connect();
