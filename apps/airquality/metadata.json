@@ -3,7 +3,7 @@
   "name": "Air Quality",
   "shortName": "Air Quality",
   "version": "0.01",
-  "description": "Display live values from a BLE Air Quality sensor",
+  "description": "Display live values from a BLE Air Quality sensor.",
   "icon": "airquality.png",
   "tags": "ble,bluetooth",
   "supports": ["BANGLEJS2"],
