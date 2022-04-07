@@ -1,11 +1,11 @@
-Bangle.js App Loader (and Apps)
+AK-Homberger Bangle.js App Loader (and My local Apps)
 ================================
 
 [![Build Status](https://app.travis-ci.com/espruino/BangleApps.svg?branch=master)](https://app.travis-ci.com/github/espruino/BangleApps)
 
 * Try the **release version** at [banglejs.com/apps](https://banglejs.com/apps)
 * Try the **development version** at [espruino.github.io](https://espruino.github.io/BangleApps/)
-* To use the lokal App loader to load **My Apps** please use this [Link](https://ak-homberger.github.io/BangleApps/index.html) 
+* To use the local App loader to load **My Apps** please use this [Link](https://ak-homberger.github.io/BangleApps/index.html) 
 
 **All software (including apps) in this repository is MIT Licensed - see [LICENSE](LICENSE)** By
 submitting code to this repository you confirm that you are happy with it being MIT licensed,
