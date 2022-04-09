@@ -5,8 +5,7 @@
 - Shows Lat/Lon, COG, SOG, HDOP and Satellites
 - Swipe left and right to change the display
 - Select GPS and switch the GPS On or Off by touching twice in the top half of the display
-- Displays the GPS time in the bottom half of the screen when the GPS is powered on, otherwise 00:00:00 
-- Select display of Course, Speed, Altitude, Longitude, Latitude, Ordinance Servey Grid Reference
+- Displays the GPS time (UTC) in the bottom half of the screen when the GPS is powered on, otherwise 00:00:00 
 
 ## Screenshots
 
