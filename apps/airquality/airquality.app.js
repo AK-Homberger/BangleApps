@@ -1,5 +1,5 @@
 const Layout = require('Layout');
-const storage = require('Storage');
+//const storage = require('Storage');
 
 const RECONNECT_TIMEOUT = 4000;
 
@@ -298,4 +298,5 @@ Bangle.setUI("updown", d => {
 Bangle.loadWidgets();
 
 sensor.connect();
+
 
