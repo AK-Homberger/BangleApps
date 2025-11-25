@@ -1,0 +1,16 @@
+{
+  "id": "airquality",
+  "name": "Air Quality",
+  "shortName": "Air Quality",
+  "version": "0.01",
+  "description": "Display live values from a BLE Air Quality sensor.",
+  "icon": "airquality.png",
+  "tags": "ble,bluetooth",
+  "supports": ["BANGLEJS2"],
+  "readme": "README.md",
+  "storage": [
+    {"name":"airquality.app.js","url":"airquality.app.js"},
+    {"name":"blecsc","url":"blecsc.js"},
+    {"name":"airquality.img","url":"airquality.icon.js","evaluate": true}
+  ]
+}
