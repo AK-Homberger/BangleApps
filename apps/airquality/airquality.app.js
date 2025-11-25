@@ -1,7 +1,7 @@
 const Layout = require('Layout');
 //const storage = require('Storage');
 
-const RECONNECT_TIMEOUT = 4000;
+const RECONNECT_TIMEOUT = 3000;
 
 class CSCSensor {
   constructor(blecsc, display) {
@@ -243,12 +243,12 @@ class CSCDisplay {
   }
 
   setHum(val) {
-    this.layouts.data.hum.label = val.toFixed(2);
+    this.layouts.data.hum.label = val;
     this.renderIfLayoutActive("data", this.layouts.data.stats_g);
   }
 
   setTemp(val) {
-    this.layouts.data.temp.label = val.toFixed(2);
+    this.layouts.data.temp.label = val;
     this.renderIfLayoutActive("data", this.layouts.data.stats_g);
   }
 
@@ -298,5 +298,6 @@ Bangle.setUI("updown", d => {
 Bangle.loadWidgets();
 
 sensor.connect();
+
 
 
