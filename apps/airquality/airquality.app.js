@@ -176,7 +176,7 @@ class CSCDisplay {
               bgCol: "#fff",
               c: [
                 {type: "txt", id: "temp_l", label: "Temp", font: this.fontLabel, col: "#000"},
-                {type: "txt", id: "temp", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
+                {type: "txt", id: "temp", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 89},
               ],
             },
             {
@@ -185,7 +185,7 @@ class CSCDisplay {
               bgCol: "#fff",
               c: [
                 {type: "txt", id: "hum_l", label: "Hum", font: this.fontLabel, col: "#000"},
-                {type: "txt", id: "hum", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 69},
+                {type: "txt", id: "hum", label: "00.0", font: this.fontSmall, bgCol: "#fff", col: "#000", width: 89},
               ],
             },
             {type: "txt", id: "stats_u", label: " ", font: this.fontLabel, bgCol: "#fff", col: "#000", width: 22, r: 90},
@@ -298,6 +298,7 @@ Bangle.setUI("updown", d => {
 Bangle.loadWidgets();
 
 sensor.connect();
+
 
 
 
